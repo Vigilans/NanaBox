@@ -1233,6 +1233,12 @@ NanaBox::VirtualMachineConfiguration NanaBox::DeserializeConfiguration(
         throw std::exception("Invalid Memory Size");
     }
 
+    if (!Result.Mounts.empty() && Result.NanaBoxStateDirectory.empty())
+    {
+        throw std::exception(
+            "Mounts requires NanaBoxStateDirectory to be set");
+    }
+
     return Result;
 }
 

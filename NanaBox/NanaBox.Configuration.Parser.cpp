@@ -910,6 +910,49 @@ NanaBox::VirtualSmbShareConfiguration NanaBox::ToVirtualSmbShareConfiguration(
     return Result;
 }
 
+nlohmann::json NanaBox::FromMountConfiguration(
+    MountConfiguration const& Value)
+{
+    nlohmann::json Result;
+
+    if (!Value.Type.empty())
+    {
+        Result["Type"] = Value.Type;
+    }
+
+    if (!Value.Share.empty())
+    {
+        Result["Share"] = Value.Share;
+    }
+
+    if (!Value.Target.empty())
+    {
+        Result["Target"] = Value.Target;
+    }
+
+    return Result;
+}
+
+NanaBox::MountConfiguration NanaBox::ToMountConfiguration(
+    nlohmann::json const& Value)
+{
+    NanaBox::MountConfiguration Result;
+
+    Result.Type = Mile::Json::ToString(
+        Mile::Json::GetSubKey(Value, "Type"),
+        Result.Type);
+
+    Result.Share = Mile::Json::ToString(
+        Mile::Json::GetSubKey(Value, "Share"),
+        Result.Share);
+
+    Result.Target = Mile::Json::ToString(
+        Mile::Json::GetSubKey(Value, "Target"),
+        Result.Target);
+
+    return Result;
+}
+
 nlohmann::json NanaBox::FromVirtualMachineConfiguration(
     NanaBox::VirtualMachineConfiguration const& Value)
 {
@@ -1075,6 +1118,24 @@ nlohmann::json NanaBox::FromVirtualMachineConfiguration(
         Result["NanaBoxStateDirectory"] = Value.NanaBoxStateDirectory;
     }
 
+    if (!Value.Mounts.empty())
+    {
+        nlohmann::json Mounts;
+        for (NanaBox::MountConfiguration const& Mount
+            : Value.Mounts)
+        {
+            if (Mount.Type.empty() || Mount.Share.empty()
+                || Mount.Target.empty())
+            {
+                continue;
+            }
+
+            Mounts.push_back(
+                NanaBox::FromMountConfiguration(Mount));
+        }
+        Result["Mounts"] = Mounts;
+    }
+
     return Result;
 }
 
@@ -1209,6 +1270,21 @@ NanaBox::VirtualMachineConfiguration NanaBox::ToVirtualMachineConfiguration(
     Result.NanaBoxStateDirectory = Mile::Json::ToString(
         Mile::Json::GetSubKey(Value, "NanaBoxStateDirectory"),
         Result.NanaBoxStateDirectory);
+
+    for (nlohmann::json const& Mount : Mile::Json::ToArray(
+        Mile::Json::GetSubKey(Value, "Mounts")))
+    {
+        NanaBox::MountConfiguration Current =
+            NanaBox::ToMountConfiguration(Mount);
+
+        if (Current.Type.empty() || Current.Share.empty()
+            || Current.Target.empty())
+        {
+            continue;
+        }
+
+        Result.Mounts.push_back(Current);
+    }
 
     return Result;
 }

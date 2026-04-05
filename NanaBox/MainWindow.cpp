@@ -4,6 +4,8 @@
 #include "ExitConfirmationPage.h"
 #include "ReloadConfirmationPage.h"
 
+#include <NanaBox.Configuration.Parser.h>
+
 #include <Mile.Xaml.h>
 
 #include <ShlObj.h>
@@ -605,6 +607,21 @@ void NanaBox::MainWindow::InitializeVirtualMachine()
         if (!::PathFileExistsW(StateDirectory.c_str()))
         {
             ::CreateDirectoryW(StateDirectory.c_str(), nullptr);
+        }
+
+        if (!this->m_Configuration.Mounts.empty())
+        {
+            nlohmann::json MountsJson;
+            for (NanaBox::MountConfiguration const& Mount
+                : this->m_Configuration.Mounts)
+            {
+                MountsJson.push_back(
+                    NanaBox::FromMountConfiguration(Mount));
+            }
+
+            std::string MountsContent = MountsJson.dump(2);
+            std::wstring MountsFilePath = StateDirectory + L"\\mounts.json";
+            ::WriteAllTextToUtf8TextFile(MountsFilePath, MountsContent);
         }
 
         winrt::check_hresult(::HcsGrantVmAccess(

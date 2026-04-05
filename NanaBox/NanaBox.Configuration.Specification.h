@@ -158,6 +158,13 @@ namespace NanaBox
         std::string Name;
     };
 
+    struct MountConfiguration
+    {
+        std::string Type;
+        std::string Share;
+        std::string Target;
+    };
+
     struct VirtualMachineConfiguration
     {
         std::uint32_t Version = 1;
@@ -183,6 +190,7 @@ namespace NanaBox
         std::vector<Plan9ShareConfiguration> Plan9Shares;
         std::vector<VirtualSmbShareConfiguration> VirtualSmbShares;
         std::string NanaBoxStateDirectory;
+        std::vector<MountConfiguration> Mounts;
     };
 }
 

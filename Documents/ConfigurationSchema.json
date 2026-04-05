@@ -448,6 +448,31 @@
             "type": "string",
             "description": "The host-side path for NanaBox state directory. The relative path is supported. NanaBox exposes this directory as a read-only Plan 9 and Virtual SMB share named \"NanaBox.State\" to the guest. The guest init service mounts it at C:\\ProgramData\\NanaBox\\State to read configuration such as mounts.json.",
             "examples": [ ".\\NanaBox State\\Windows" ]
+          },
+          "Mounts": {
+            "type": "array",
+            "description": "The mount configuration array for the guest. NanaBox writes this array as mounts.json into NanaBoxStateDirectory. The guest init service reads it and applies bind filter mounts accordingly. Requires NanaBoxStateDirectory to be set.",
+            "items": {
+              "type": "object",
+              "required": [ "Type", "Share", "Target" ],
+              "properties": {
+                "Type": {
+                  "type": "string",
+                  "description": "The type of mount source.",
+                  "enum": [ "VirtualSmb" ]
+                },
+                "Share": {
+                  "type": "string",
+                  "description": "The name of a VirtualSmbShares entry to mount.",
+                  "examples": [ "Shared" ]
+                },
+                "Target": {
+                  "type": "string",
+                  "description": "The guest-side target path for the mount.",
+                  "examples": [ "C:\\Shared" ]
+                }
+              }
+            }
           }
         }
       }

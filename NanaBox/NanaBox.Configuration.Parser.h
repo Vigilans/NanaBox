@@ -101,6 +101,12 @@ namespace NanaBox
     VirtualSmbShareConfiguration ToVirtualSmbShareConfiguration(
         nlohmann::json const& Value);
 
+    nlohmann::json FromMountConfiguration(
+        MountConfiguration const& Value);
+
+    MountConfiguration ToMountConfiguration(
+        nlohmann::json const& Value);
+
     nlohmann::json FromVirtualMachineConfiguration(
         VirtualMachineConfiguration const& Value);
 
