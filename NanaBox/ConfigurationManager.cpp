@@ -448,6 +448,20 @@ std::string NanaBox::MakeHcsConfiguration(
                 }
             }
 
+            if (!Configuration.NanaBoxStateDirectory.empty())
+            {
+                const std::uint32_t Plan9SharePort = 50001;
+
+                nlohmann::json Current;
+                Current["Name"] = "NanaBox.State";
+                Current["AccessName"] = "NanaBox.State";
+                Current["Path"] = ::GetAbsoluteUtf8Path(
+                    Configuration.NanaBoxStateDirectory);
+                Current["Port"] = Plan9SharePort;
+                Current["Flags"] = NanaBox::Plan9ShareFlags::ReadOnly;
+                Plan9Shares.push_back(Current);
+            }
+
             for (NanaBox::Plan9ShareConfiguration const& Plan9Share
                 : Configuration.Plan9Shares)
             {
@@ -464,6 +478,18 @@ std::string NanaBox::MakeHcsConfiguration(
             if (!Plan9Shares.empty())
             {
                 Devices["Plan9"]["Shares"] = Plan9Shares;
+            }
+
+            if (!Configuration.NanaBoxStateDirectory.empty())
+            {
+                nlohmann::json Current;
+                Current["Name"] = "NanaBox.State";
+                Current["Path"] = ::GetAbsoluteUtf8Path(
+                    Configuration.NanaBoxStateDirectory);
+                Current["Options"]["ReadOnly"] = true;
+                Current["Options"]["PseudoOplocks"] = true;
+                Current["Options"]["PseudoDirnotify"] = true;
+                VirtualSmbShares.push_back(Current);
             }
 
             for (NanaBox::VirtualSmbShareConfiguration const& VirtualSmbShare

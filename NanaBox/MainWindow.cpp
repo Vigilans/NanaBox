@@ -598,6 +598,20 @@ void NanaBox::MainWindow::InitializeVirtualMachine()
         }
     }
 
+    if (!this->m_Configuration.NanaBoxStateDirectory.empty())
+    {
+        std::wstring StateDirectory = ::GetAbsolutePath(Mile::ToWideString(
+            CP_UTF8, this->m_Configuration.NanaBoxStateDirectory));
+        if (!::PathFileExistsW(StateDirectory.c_str()))
+        {
+            ::CreateDirectoryW(StateDirectory.c_str(), nullptr);
+        }
+
+        winrt::check_hresult(::HcsGrantVmAccess(
+            winrt::to_hstring(this->m_Configuration.Name).c_str(),
+            StateDirectory.c_str()));
+    }
+
     if (!this->m_Configuration.NetworkAdapters.empty())
     {
         for (NanaBox::NetworkAdapterConfiguration& NetworkAdapter

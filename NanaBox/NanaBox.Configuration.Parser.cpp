@@ -1070,6 +1070,11 @@ nlohmann::json NanaBox::FromVirtualMachineConfiguration(
         Result["VirtualSmbShares"] = VirtualSmbShares;
     }
 
+    if (!Value.NanaBoxStateDirectory.empty())
+    {
+        Result["NanaBoxStateDirectory"] = Value.NanaBoxStateDirectory;
+    }
+
     return Result;
 }
 
@@ -1200,6 +1205,10 @@ NanaBox::VirtualMachineConfiguration NanaBox::ToVirtualMachineConfiguration(
 
         Result.VirtualSmbShares.push_back(Current);
     }
+
+    Result.NanaBoxStateDirectory = Mile::Json::ToString(
+        Mile::Json::GetSubKey(Value, "NanaBoxStateDirectory"),
+        Result.NanaBoxStateDirectory);
 
     return Result;
 }

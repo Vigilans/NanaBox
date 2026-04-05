@@ -182,6 +182,7 @@ namespace NanaBox
         std::vector<std::string> Policies;
         std::vector<Plan9ShareConfiguration> Plan9Shares;
         std::vector<VirtualSmbShareConfiguration> VirtualSmbShares;
+        std::string NanaBoxStateDirectory;
     };
 }
 

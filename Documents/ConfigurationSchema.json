@@ -443,6 +443,11 @@
                 }
               }
             }
+          },
+          "NanaBoxStateDirectory": {
+            "type": "string",
+            "description": "The host-side path for NanaBox state directory. The relative path is supported. NanaBox exposes this directory as a read-only Plan 9 and Virtual SMB share named \"NanaBox.State\" to the guest. The guest init service mounts it at C:\\ProgramData\\NanaBox\\State to read configuration such as mounts.json.",
+            "examples": [ ".\\NanaBox State\\Windows" ]
           }
         }
       }
