@@ -609,9 +609,55 @@ void NanaBox::MainWindow::InitializeVirtualMachine()
             ::CreateDirectoryW(StateDirectory.c_str(), nullptr);
         }
 
-        if (!this->m_Configuration.Mounts.empty())
         {
             nlohmann::json MountsJson;
+
+            // Built-in mounts based on GuestType
+            if (NanaBox::GuestType::Windows ==
+                this->m_Configuration.GuestType)
+            {
+                nlohmann::json StateMount;
+                StateMount["Type"] = "VirtualSmb";
+                StateMount["Share"] = "NanaBox.State";
+                StateMount["Target"] = "C:\\ProgramData\\NanaBox\\State";
+                MountsJson.push_back(StateMount);
+
+                if (this->m_Configuration.Gpu.EnableHostDriverStore)
+                {
+                    nlohmann::json DriverMount;
+                    DriverMount["Type"] = "VirtualSmb";
+                    DriverMount["Share"] = "NanaBox.HostDrivers";
+                    DriverMount["Target"] =
+                        "C:\\Windows\\System32\\HostDriverStore\\FileRepository";
+                    MountsJson.push_back(DriverMount);
+                }
+            }
+            else if (NanaBox::GuestType::Linux ==
+                this->m_Configuration.GuestType)
+            {
+                nlohmann::json StateMount;
+                StateMount["Type"] = "Plan9";
+                StateMount["Share"] = "NanaBox.State";
+                StateMount["Target"] = "/run/nanabox";
+                MountsJson.push_back(StateMount);
+
+                if (this->m_Configuration.Gpu.EnableHostDriverStore)
+                {
+                    nlohmann::json DriversMount;
+                    DriversMount["Type"] = "Plan9";
+                    DriversMount["Share"] = "NanaBox.HostDrivers";
+                    DriversMount["Target"] = "/usr/lib/wsl/drivers";
+                    MountsJson.push_back(DriversMount);
+
+                    nlohmann::json LxssLibMount;
+                    LxssLibMount["Type"] = "Plan9";
+                    LxssLibMount["Share"] = "NanaBox.HostLxssLib";
+                    LxssLibMount["Target"] = "/usr/lib/wsl/lib";
+                    MountsJson.push_back(LxssLibMount);
+                }
+            }
+
+            // User-defined mounts
             for (NanaBox::MountConfiguration const& Mount
                 : this->m_Configuration.Mounts)
             {

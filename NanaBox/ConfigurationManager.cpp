@@ -401,6 +401,7 @@ std::string NanaBox::MakeHcsConfiguration(
 
                 const ShareItem VirtualSmbShareItems[] =
                 {
+                    { "HostDriverStore", L"\\DriverStore" },
                     { "NanaBox.HostDrivers", L"\\DriverStore\\FileRepository" },
                     { "NanaBox.HostLxssLib", L"\\lxss\\lib" }
                 };
