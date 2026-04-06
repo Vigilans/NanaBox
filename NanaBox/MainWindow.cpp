@@ -547,7 +547,10 @@ void NanaBox::MainWindow::InitializeVirtualMachine()
     {
         if (ScsiDevice.Type == NanaBox::ScsiDeviceType::PhysicalDevice)
         {
-            break;
+            winrt::check_hresult(::HcsGrantVmAccess(
+                winrt::to_hstring(this->m_Configuration.Name).c_str(),
+                Mile::ToWideString(CP_UTF8, ScsiDevice.Path).c_str()));
+            continue;
         }
 
         std::wstring Path = ::GetAbsolutePath(Mile::ToWideString(
