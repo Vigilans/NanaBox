@@ -272,9 +272,33 @@ int WINAPI wWinMain(
 
     if (!UnresolvedCommandLine.empty())
     {
-        ConfigurationFilePath = ::GetAbsolutePath(UnresolvedCommandLine);
+        std::wstring SubcommandName;
+        std::map<std::wstring, std::wstring> SubcommandOptions;
+        std::wstring SubcommandArgument;
+        ::SplitCommandLineEx(
+            UnresolvedCommandLine,
+            std::vector<std::wstring>{ L"-", L"/", L"--" },
+            std::vector<std::wstring>{ L"=", L":" },
+            SubcommandName,
+            SubcommandOptions,
+            SubcommandArgument);
+
+        if (0 == ::_wcsicmp(SubcommandName.c_str(), L"start"))
+        {
+            if (!SubcommandArgument.empty())
+            {
+                ConfigurationFilePath =
+                    ::GetAbsolutePath(SubcommandArgument);
+            }
+        }
+        else
+        {
+            ConfigurationFilePath =
+                ::GetAbsolutePath(UnresolvedCommandLine);
+        }
     }
-    else
+
+    if (ConfigurationFilePath.empty())
     {
         HWND WindowHandle = ::CreateWindowExW(
             WS_EX_STATICEDGE | WS_EX_DLGMODALFRAME,
