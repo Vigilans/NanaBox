@@ -309,6 +309,7 @@ std::string NanaBox::MakeHcsConfiguration(
                 Configuration.Name.c_str());
             nlohmann::json AccessSids;
             AccessSids.push_back(::GetCurrentProcessUserStringSid());
+            AccessSids.push_back("S-1-5-32-544"); // BUILTIN\Administrators
             ConnectionOptions["AccessSids"] = AccessSids;
             VideoMonitor["ConnectionOptions"] = ConnectionOptions;
         }
@@ -322,6 +323,7 @@ std::string NanaBox::MakeHcsConfiguration(
                 Configuration.Name.c_str());
             nlohmann::json AccessSids;
             AccessSids.push_back(::GetCurrentProcessUserStringSid());
+            AccessSids.push_back("S-1-5-32-544"); // BUILTIN\Administrators
             ConnectionOptions["AccessSids"] = AccessSids;
             EnhancedModeVideo["ConnectionOptions"] = ConnectionOptions;
         }
