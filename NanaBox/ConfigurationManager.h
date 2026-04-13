@@ -97,6 +97,16 @@ namespace NanaBox
 
     std::string SerializeConfiguration(
         VirtualMachineConfiguration const& Configuration);
+
+    struct VirtualMachineContext
+    {
+        VirtualMachineConfiguration Configuration;
+        winrt::com_ptr<ComputeSystem> VirtualMachine;
+        std::wstring ConfigurationFilePath;
+    };
+
+    VirtualMachineContext CreateVirtualMachine(
+        std::wstring const& ConfigurationFilePath);
 }
 
 #endif // !NANABOX_CONFIGURATION_MANAGER

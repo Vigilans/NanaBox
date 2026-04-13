@@ -36,6 +36,26 @@ namespace
         L"_" MILE_PROJECT_BUILD_DATE_STRING;
 
     WTL::CAppModule g_Module;
+
+    DWORD RunElevated(
+        std::wstring const& FilePath,
+        LPCWSTR Parameters,
+        int nShowCmd)
+    {
+        SHELLEXECUTEINFOW Information = {};
+        Information.cbSize = sizeof(SHELLEXECUTEINFOW);
+        Information.fMask = SEE_MASK_NOCLOSEPROCESS;
+        Information.lpVerb = L"runas";
+        Information.nShow = nShowCmd;
+        Information.lpFile = FilePath.c_str();
+        Information.lpParameters = Parameters;
+        winrt::check_bool(::ShellExecuteExW(&Information));
+        ::WaitForSingleObjectEx(Information.hProcess, INFINITE, FALSE);
+        DWORD ExitCode = 0;
+        ::GetExitCodeProcess(Information.hProcess, &ExitCode);
+        ::CloseHandle(Information.hProcess);
+        return ExitCode;
+    }
 }
 
 void PrerequisiteCheck()
@@ -149,23 +169,15 @@ int WINAPI wWinMain(
     {
         if (!::MileIsCurrentProcessElevated())
         {
-            std::wstring ModulePath = ::GetCurrentProcessModulePath();
-            SHELLEXECUTEINFOW Information = {};
-            Information.cbSize = sizeof(SHELLEXECUTEINFOW);
-            Information.fMask = SEE_MASK_NOCLOSEPROCESS;
-            Information.lpVerb = L"runas";
-            Information.nShow = SW_HIDE;
-            Information.lpFile = ModulePath.c_str();
-            Information.lpParameters = lpCmdLine;
-            if (!::ShellExecuteExW(&Information))
+            try
             {
-                return ::HRESULT_FROM_WIN32(::GetLastError());
+                return RunElevated(
+                    ::GetCurrentProcessModulePath(), lpCmdLine, SW_HIDE);
             }
-            ::WaitForSingleObjectEx(Information.hProcess, INFINITE, FALSE);
-            DWORD ExitCode = 0;
-            ::GetExitCodeProcess(Information.hProcess, &ExitCode);
-            ::CloseHandle(Information.hProcess);
-            return static_cast<int>(ExitCode);
+            catch (winrt::hresult_error const& ex)
+            {
+                return ex.code();
+            }
         }
 
         if (Argument.empty())
@@ -202,6 +214,87 @@ int WINAPI wWinMain(
 
             ComputeSystem->Pause();
             ComputeSystem->Terminate();
+        }
+        catch (winrt::hresult_error const& ex)
+        {
+            return ex.code();
+        }
+
+        return 0;
+    }
+
+    if (0 == ::_wcsicmp(Subcommand.c_str(), L"start") &&
+        Options.count(L"headless"))
+    {
+        if (!::MileIsCurrentProcessElevated())
+        {
+            try
+            {
+                return RunElevated(
+                    ::GetCurrentProcessModulePath(), lpCmdLine, SW_HIDE);
+            }
+            catch (winrt::hresult_error const& ex)
+            {
+                return ex.code();
+            }
+        }
+
+        if (Argument.empty())
+        {
+            return ERROR_INVALID_PARAMETER;
+        }
+
+        std::wstring ConfigurationFilePath = ::GetAbsolutePath(Argument);
+
+        {
+            std::wstring CurrentPath = ConfigurationFilePath;
+            std::wcsrchr(&CurrentPath[0], L'\\')[0] = L'\0';
+            CurrentPath.resize(std::wcslen(CurrentPath.c_str()));
+            ::SetCurrentDirectoryW(CurrentPath.c_str());
+        }
+
+        try
+        {
+            auto Context = NanaBox::CreateVirtualMachine(
+                ConfigurationFilePath);
+
+            HANDLE ExitEvent = ::CreateEventW(
+                nullptr, TRUE, FALSE, nullptr);
+
+            Context.VirtualMachine->SystemExited.add(
+                [ExitEvent](winrt::hstring const& EventData)
+            {
+                UNREFERENCED_PARAMETER(EventData);
+                ::SetEvent(ExitEvent);
+            });
+
+            Context.VirtualMachine->Start();
+
+            NanaBox::ComputeSystemUpdateGpu(
+                Context.VirtualMachine,
+                Context.Configuration.Gpu);
+
+            if (!Context.Configuration.SaveStateFile.empty())
+            {
+                std::wstring SaveStateFile =
+                    ::GetAbsolutePath(Mile::ToWideString(
+                        CP_UTF8,
+                        Context.Configuration.SaveStateFile));
+
+                ::MileDeleteFileIgnoreReadonlyAttribute(
+                    SaveStateFile.c_str());
+
+                Context.Configuration.SaveStateFile.clear();
+            }
+
+            std::string ConfigurationFileContent =
+                NanaBox::SerializeConfiguration(Context.Configuration);
+            ::WriteAllTextToUtf8TextFile(
+                Context.ConfigurationFilePath,
+                ConfigurationFileContent);
+
+            ::WaitForSingleObject(ExitEvent, INFINITE);
+            ::CloseHandle(ExitEvent);
         }
         catch (winrt::hresult_error const& ex)
         {
@@ -326,16 +419,7 @@ int WINAPI wWinMain(
                 ApplicationName = ::GetCurrentProcessModulePath();
             }
 
-            SHELLEXECUTEINFOW Information = {};
-            Information.cbSize = sizeof(SHELLEXECUTEINFOW);
-            Information.fMask = SEE_MASK_NOCLOSEPROCESS;
-            Information.lpVerb = L"runas";
-            Information.nShow = nShowCmd;
-            Information.lpFile = ApplicationName.c_str();
-            Information.lpParameters = lpCmdLine;
-            winrt::check_bool(::ShellExecuteExW(&Information));
-            ::WaitForSingleObjectEx(Information.hProcess, INFINITE, FALSE);
-            ::CloseHandle(Information.hProcess);
+            RunElevated(ApplicationName, lpCmdLine, nShowCmd);
 
             if (PackagedMode && !TargetBinaryPath.empty())
             {

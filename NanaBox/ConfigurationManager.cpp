@@ -1253,3 +1253,195 @@ std::string NanaBox::SerializeConfiguration(
 
     return Result.dump(2);
 }
+
+NanaBox::VirtualMachineContext NanaBox::CreateVirtualMachine(
+    std::wstring const& ConfigurationFilePath)
+{
+    NanaBox::VirtualMachineContext Context;
+    Context.ConfigurationFilePath = ConfigurationFilePath;
+
+    std::string ConfigurationFileContent = ::ReadAllTextFromUtf8TextFile(
+        ConfigurationFilePath);
+
+    Context.Configuration = NanaBox::DeserializeConfiguration(
+        ConfigurationFileContent);
+
+    winrt::hstring HcsVmId = winrt::to_hstring(Context.Configuration.Name);
+
+    {
+        bool VirtualMachineExisted = true;
+        try
+        {
+            winrt::make_self<NanaBox::ComputeSystem>(HcsVmId);
+        }
+        catch (...)
+        {
+            VirtualMachineExisted = false;
+        }
+
+        if (VirtualMachineExisted)
+        {
+            winrt::throw_hresult(HCS_E_SYSTEM_ALREADY_EXISTS);
+        }
+    }
+
+    for (NanaBox::ScsiDeviceConfiguration& ScsiDevice
+        : Context.Configuration.ScsiDevices)
+    {
+        NanaBox::ValidateScsiDeviceConfiguration(HcsVmId, ScsiDevice);
+    }
+
+    if (Context.Configuration.GuestStateFile.empty())
+    {
+        Context.Configuration.GuestStateFile =
+            Context.Configuration.Name + ".vmgs";
+    }
+    {
+        std::wstring GuestStateFile = ::GetAbsolutePath(Mile::ToWideString(
+            CP_UTF8, Context.Configuration.GuestStateFile));
+        if (!::PathFileExistsW(GuestStateFile.c_str()))
+        {
+            winrt::check_hresult(::HcsCreateEmptyGuestStateFile(
+                GuestStateFile.c_str()));
+        }
+
+        winrt::check_hresult(::HcsGrantVmAccess(
+            HcsVmId.c_str(),
+            GuestStateFile.c_str()));
+    }
+
+    if (Context.Configuration.RuntimeStateFile.empty())
+    {
+        Context.Configuration.RuntimeStateFile =
+            Context.Configuration.Name + ".vmrs";
+    }
+    {
+        std::wstring RuntimeStateFile = ::GetAbsolutePath(Mile::ToWideString(
+            CP_UTF8, Context.Configuration.RuntimeStateFile));
+        if (!::PathFileExistsW(RuntimeStateFile.c_str()))
+        {
+            winrt::check_hresult(::HcsCreateEmptyRuntimeStateFile(
+                RuntimeStateFile.c_str()));
+        }
+
+        winrt::check_hresult(::HcsGrantVmAccess(
+            HcsVmId.c_str(),
+            RuntimeStateFile.c_str()));
+    }
+
+    if (!Context.Configuration.SaveStateFile.empty())
+    {
+        std::wstring SaveStateFile = ::GetAbsolutePath(Mile::ToWideString(
+            CP_UTF8, Context.Configuration.SaveStateFile));
+        if (::PathFileExistsW(SaveStateFile.c_str()))
+        {
+            winrt::check_hresult(::HcsGrantVmAccess(
+                HcsVmId.c_str(),
+                SaveStateFile.c_str()));
+        }
+    }
+
+    if (!Context.Configuration.NanaBoxStateDirectory.empty())
+    {
+        std::wstring StateDirectory = ::GetAbsolutePath(Mile::ToWideString(
+            CP_UTF8, Context.Configuration.NanaBoxStateDirectory));
+        if (!::PathFileExistsW(StateDirectory.c_str()))
+        {
+            ::CreateDirectoryW(StateDirectory.c_str(), nullptr);
+        }
+
+        {
+            nlohmann::json MountsJson;
+
+            // Built-in mounts based on GuestType
+            if (NanaBox::GuestType::Windows ==
+                Context.Configuration.GuestType)
+            {
+                nlohmann::json StateMount;
+                StateMount["Type"] = "VirtualSmb";
+                StateMount["Share"] = "NanaBox.State";
+                StateMount["Target"] = "C:\\ProgramData\\NanaBox\\State";
+                MountsJson.push_back(StateMount);
+
+                if (Context.Configuration.Gpu.EnableHostDriverStore)
+                {
+                    nlohmann::json DriverMount;
+                    DriverMount["Type"] = "VirtualSmb";
+                    DriverMount["Share"] = "NanaBox.HostDrivers";
+                    DriverMount["Target"] =
+                        "C:\\Windows\\System32\\HostDriverStore\\FileRepository";
+                    MountsJson.push_back(DriverMount);
+                }
+            }
+            else if (NanaBox::GuestType::Linux ==
+                Context.Configuration.GuestType)
+            {
+                nlohmann::json StateMount;
+                StateMount["Type"] = "Plan9";
+                StateMount["Share"] = "NanaBox.State";
+                StateMount["Target"] = "/run/nanabox";
+                MountsJson.push_back(StateMount);
+
+                if (Context.Configuration.Gpu.EnableHostDriverStore)
+                {
+                    nlohmann::json DriversMount;
+                    DriversMount["Type"] = "Plan9";
+                    DriversMount["Share"] = "NanaBox.HostDrivers";
+                    DriversMount["Target"] = "/usr/lib/wsl/drivers";
+                    MountsJson.push_back(DriversMount);
+
+                    nlohmann::json LxssLibMount;
+                    LxssLibMount["Type"] = "Plan9";
+                    LxssLibMount["Share"] = "NanaBox.HostLxssLib";
+                    LxssLibMount["Target"] = "/usr/lib/wsl/lib";
+                    MountsJson.push_back(LxssLibMount);
+                }
+            }
+
+            // User-defined mounts
+            for (NanaBox::MountConfiguration const& Mount
+                : Context.Configuration.Mounts)
+            {
+                MountsJson.push_back(
+                    NanaBox::FromMountConfiguration(Mount));
+            }
+
+            std::string MountsContent = MountsJson.dump(2);
+            std::wstring MountsFilePath = StateDirectory + L"\\mounts.json";
+            ::WriteAllTextToUtf8TextFile(MountsFilePath, MountsContent);
+        }
+
+        winrt::check_hresult(::HcsGrantVmAccess(
+            winrt::to_hstring(Context.Configuration.Name).c_str(),
+            StateDirectory.c_str()));
+    }
+
+    if (!Context.Configuration.NetworkAdapters.empty())
+    {
+        for (NanaBox::NetworkAdapterConfiguration& NetworkAdapter
+            : Context.Configuration.NetworkAdapters)
+        {
+            NanaBox::ComputeNetworkDeleteEndpoint(NetworkAdapter);
+            if (NetworkAdapter.Connected)
+            {
+                try
+                {
+                    NanaBox::ComputeNetworkCreateEndpoint(
+                        Context.Configuration.Name,
+                        NetworkAdapter);
+                }
+                catch (...)
+                {
+
+                }
+            }
+        }
+    }
+
+    Context.VirtualMachine = winrt::make_self<NanaBox::ComputeSystem>(
+        HcsVmId,
+        winrt::to_hstring(
+            NanaBox::MakeHcsConfiguration(Context.Configuration)));
+
+    return Context;
+}
