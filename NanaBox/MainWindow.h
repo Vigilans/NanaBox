@@ -54,7 +54,8 @@ namespace NanaBox
         END_MSG_MAP()
 
         MainWindow(
-            std::wstring const& ConfigurationFilePath);
+            std::wstring const& ConfigurationFilePath,
+            bool AttachMode = false);
 
         int OnCreate(
             LPCREATESTRUCT lpCreateStruct);
@@ -105,6 +106,8 @@ namespace NanaBox
         int m_RecommendedMainWindowControlHeight = m_MainWindowControlHeight;
         winrt::NanaBox::MainWindowControl m_MainWindowControl;
         std::wstring m_ConfigurationFilePath;
+        bool m_AttachMode = false;
+        HANDLE m_SessionMutex = nullptr;
         NanaBox::VirtualMachineConfiguration m_Configuration;
         winrt::com_ptr<NanaBox::ComputeSystem> m_VirtualMachine;
         std::string m_VirtualMachineGuid;
@@ -123,6 +126,8 @@ namespace NanaBox
         bool m_VirtualMachineNeverConnected = false;
 
         void InitializeVirtualMachine();
+
+        void AttachToVirtualMachine();
 
         void TryReloadVirtualMachine();
 

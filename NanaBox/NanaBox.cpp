@@ -152,7 +152,8 @@ int WINAPI wWinMain(
                 }
                 else if (Subcommand.empty() &&
                     (0 == ::_wcsicmp(Token.c_str(), L"start") ||
-                     0 == ::_wcsicmp(Token.c_str(), L"stop")))
+                     0 == ::_wcsicmp(Token.c_str(), L"stop") ||
+                     0 == ::_wcsicmp(Token.c_str(), L"attach")))
                 {
                     Subcommand = Token;
                 }
@@ -512,7 +513,10 @@ int WINAPI wWinMain(
     g_Module.Init(nullptr, hInstance);
     g_Module.AddMessageLoop(&MessageLoop);
 
-    NanaBox::MainWindow MainWindow(ConfigurationFilePath);
+    bool AttachMode =
+        (0 == ::_wcsicmp(Subcommand.c_str(), L"attach"));
+
+    NanaBox::MainWindow MainWindow(ConfigurationFilePath, AttachMode);
     if (!MainWindow.Create(
         nullptr,
         MainWindow.rcDefault,

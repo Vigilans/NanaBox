@@ -27,8 +27,10 @@ namespace winrt
 }
 
 NanaBox::MainWindow::MainWindow(
-    std::wstring const& ConfigurationFilePath) :
-    m_ConfigurationFilePath(ConfigurationFilePath)
+    std::wstring const& ConfigurationFilePath,
+    bool AttachMode) :
+    m_ConfigurationFilePath(ConfigurationFilePath),
+    m_AttachMode(AttachMode)
 {
 
 }
@@ -65,7 +67,14 @@ int NanaBox::MainWindow::OnCreate(
 
     try
     {
-        this->InitializeVirtualMachine();
+        if (this->m_AttachMode)
+        {
+            this->AttachToVirtualMachine();
+        }
+        else
+        {
+            this->InitializeVirtualMachine();
+        }
 
         winrt::check_hresult(::RDPBASE_CreateInstance(
             nullptr,
@@ -398,7 +407,7 @@ void NanaBox::MainWindow::OnActivate(
 
 void NanaBox::MainWindow::OnClose()
 {
-    if (!this->m_VirtualMachineRunning)
+    if (!this->m_VirtualMachineRunning || this->m_AttachMode)
     {
         this->DestroyWindow();
         return;
@@ -497,6 +506,11 @@ void NanaBox::MainWindow::OnClose()
 void NanaBox::MainWindow::OnDestroy()
 {
     // Just kill the process directly for reducing the Windows error reports.
+    if (this->m_SessionMutex)
+    {
+        ::CloseHandle(this->m_SessionMutex);
+        this->m_SessionMutex = nullptr;
+    }
     ::TerminateProcess(::GetCurrentProcess(), 0);
 }
 
@@ -524,6 +538,11 @@ void NanaBox::MainWindow::InitializeVirtualMachine()
 
     this->m_Configuration = std::move(Context.Configuration);
     this->m_VirtualMachine = std::move(Context.VirtualMachine);
+
+    this->m_SessionMutex = ::CreateMutexW(
+        nullptr, TRUE,
+        (L"NanaBox_Session_" +
+            winrt::to_hstring(this->m_Configuration.Name)).c_str());
 
     this->m_VirtualMachine->SystemExited.add([this](
         winrt::hstring const& EventData)
@@ -570,6 +589,53 @@ void NanaBox::MainWindow::InitializeVirtualMachine()
     ::WriteAllTextToUtf8TextFile(
         this->m_ConfigurationFilePath,
         ConfigurationFileContent);
+
+    nlohmann::json Properties = nlohmann::json::parse(
+        winrt::to_string(this->m_VirtualMachine->GetProperties()));
+    this->m_VirtualMachineGuid = Properties["RuntimeId"];
+
+    this->m_WindowTitle = Mile::ToWideString(
+        CP_UTF8,
+        Mile::FormatString(
+            "%s - NanaBox",
+            this->m_Configuration.Name.c_str()));
+    this->SetWindowTextW(this->m_WindowTitle.c_str());
+}
+
+void NanaBox::MainWindow::AttachToVirtualMachine()
+{
+    std::string ConfigurationFileContent = ::ReadAllTextFromUtf8TextFile(
+        this->m_ConfigurationFilePath);
+
+    this->m_Configuration = NanaBox::DeserializeConfiguration(
+        ConfigurationFileContent);
+
+    winrt::hstring HcsVmId = winrt::to_hstring(this->m_Configuration.Name);
+
+    this->m_SessionMutex = ::CreateMutexW(
+        nullptr, TRUE,
+        (L"NanaBox_Session_" + HcsVmId).c_str());
+    if (::GetLastError() == ERROR_ALREADY_EXISTS)
+    {
+        ::CloseHandle(this->m_SessionMutex);
+        this->m_SessionMutex = nullptr;
+        throw std::exception("A session is already connected to this VM");
+    }
+
+    this->m_VirtualMachine =
+        winrt::make_self<NanaBox::ComputeSystem>(HcsVmId);
+
+    this->m_VirtualMachine->SystemExited.add([this](
+        winrt::hstring const& EventData)
+    {
+        UNREFERENCED_PARAMETER(EventData);
+
+        this->m_VirtualMachineRunning = false;
+        ::SleepEx(200, FALSE);
+        this->PostMessageW(WM_CLOSE);
+    });
+
+    this->m_VirtualMachineRunning = true;
 
     nlohmann::json Properties = nlohmann::json::parse(
         winrt::to_string(this->m_VirtualMachine->GetProperties()));
