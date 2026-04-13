@@ -153,7 +153,8 @@ int WINAPI wWinMain(
                 else if (Subcommand.empty() &&
                     (0 == ::_wcsicmp(Token.c_str(), L"start") ||
                      0 == ::_wcsicmp(Token.c_str(), L"stop") ||
-                     0 == ::_wcsicmp(Token.c_str(), L"attach")))
+                     0 == ::_wcsicmp(Token.c_str(), L"attach") ||
+                     0 == ::_wcsicmp(Token.c_str(), L"help")))
                 {
                     Subcommand = Token;
                 }
@@ -164,6 +165,29 @@ int WINAPI wWinMain(
             }
             ::LocalFree(argv);
         }
+    }
+
+    if (Options.count(L"help") || Options.count(L"h") ||
+        Options.count(L"?") ||
+        0 == ::_wcsicmp(Subcommand.c_str(), L"help"))
+    {
+        ::MessageBoxW(
+            nullptr,
+            L"Usage: NanaBox [command] [options] [config.7b]\r\n"
+            L"\r\n"
+            L"Commands:\r\n"
+            L"  start [--headless] <config.7b>\r\n"
+            L"      Start a virtual machine\r\n"
+            L"  stop <name|config.7b>\r\n"
+            L"      Stop a running virtual machine\r\n"
+            L"  attach <config.7b>\r\n"
+            L"      Attach to a running virtual machine\r\n"
+            L"\r\n"
+            L"Without a command, opens the config file in GUI mode.\r\n"
+            L"Without arguments, opens the Quick Start page.",
+            L"NanaBox",
+            MB_OK | MB_ICONINFORMATION);
+        return 0;
     }
 
     if (0 == ::_wcsicmp(Subcommand.c_str(), L"stop"))
