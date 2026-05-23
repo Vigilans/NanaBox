@@ -513,6 +513,11 @@ std::string NanaBox::MakeHcsConfiguration(
             }
             if (!VirtualSmbShares.empty())
             {
+                if (Configuration.VirtualSmbDirectFileMappingInMB > 0)
+                {
+                    Devices["VirtualSmb"]["DirectFileMappingInMB"] =
+                        Configuration.VirtualSmbDirectFileMappingInMB;
+                }
                 Devices["VirtualSmb"]["Shares"] = VirtualSmbShares;
             }
         }

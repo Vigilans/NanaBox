@@ -189,6 +189,7 @@ namespace NanaBox
         std::vector<std::string> Policies;
         std::vector<Plan9ShareConfiguration> Plan9Shares;
         std::vector<VirtualSmbShareConfiguration> VirtualSmbShares;
+        std::uint64_t VirtualSmbDirectFileMappingInMB = 0;
         std::string NanaBoxStateDirectory;
         std::vector<MountConfiguration> Mounts;
     };
