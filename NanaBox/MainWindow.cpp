@@ -568,6 +568,10 @@ void NanaBox::MainWindow::InitializeVirtualMachine()
 
     this->m_VirtualMachine->Start();
 
+    NanaBox::ComputeSystemUpdateVirtualSmbShares(
+        this->m_VirtualMachine,
+        this->m_Configuration);
+
     NanaBox::ComputeSystemUpdateGpu(
         this->m_VirtualMachine,
         this->m_Configuration.Gpu);

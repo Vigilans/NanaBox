@@ -877,6 +877,11 @@ nlohmann::json NanaBox::FromVirtualSmbShareConfiguration(
         Result["ReadOnly"] = true;
     }
 
+    if (Value.Privileged)
+    {
+        Result["Privileged"] = true;
+    }
+
     if (!Value.Path.empty())
     {
         Result["Path"] = Value.Path;
@@ -898,6 +903,10 @@ NanaBox::VirtualSmbShareConfiguration NanaBox::ToVirtualSmbShareConfiguration(
     Result.ReadOnly = Mile::Json::ToBoolean(
         Mile::Json::GetSubKey(Value, "ReadOnly"),
         Result.ReadOnly);
+
+    Result.Privileged = Mile::Json::ToBoolean(
+        Mile::Json::GetSubKey(Value, "Privileged"),
+        Result.Privileged);
 
     Result.Path = Mile::Json::ToString(
         Mile::Json::GetSubKey(Value, "Path"),

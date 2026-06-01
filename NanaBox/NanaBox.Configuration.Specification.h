@@ -154,6 +154,7 @@ namespace NanaBox
     struct VirtualSmbShareConfiguration
     {
         bool ReadOnly = false;
+        bool Privileged = false;
         std::string Path;
         std::string Name;
     };

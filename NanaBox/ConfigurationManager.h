@@ -84,6 +84,10 @@ namespace NanaBox
         winrt::com_ptr<ComputeSystem> const& Instance,
         GpuConfiguration const& Configuration);
 
+    void ComputeSystemUpdateVirtualSmbShares(
+        winrt::com_ptr<ComputeSystem> const& Instance,
+        VirtualMachineConfiguration const& Configuration);
+
     void RemoteDesktopUpdateKeyboardConfiguration(
         winrt::com_ptr<RdpClient> const& Instance,
         KeyboardConfiguration& Configuration);

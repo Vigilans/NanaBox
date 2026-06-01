@@ -295,6 +295,10 @@ int WINAPI wWinMain(
 
             Context.VirtualMachine->Start();
 
+            NanaBox::ComputeSystemUpdateVirtualSmbShares(
+                Context.VirtualMachine,
+                Context.Configuration);
+
             NanaBox::ComputeSystemUpdateGpu(
                 Context.VirtualMachine,
                 Context.Configuration.Gpu);

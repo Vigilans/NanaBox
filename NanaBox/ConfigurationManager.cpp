@@ -495,30 +495,21 @@ std::string NanaBox::MakeHcsConfiguration(
                 VirtualSmbShares.push_back(Current);
             }
 
-            for (NanaBox::VirtualSmbShareConfiguration const& VirtualSmbShare
-                : Configuration.VirtualSmbShares)
-            {
-                nlohmann::json Current;
-                Current["Name"] = VirtualSmbShare.Name;
-                Current["Path"] = ::GetAbsoluteUtf8Path(VirtualSmbShare.Path);
-                if (VirtualSmbShare.ReadOnly)
-                {
-                    Current["Options"]["ReadOnly"] = true;
-                    Current["Options"]["ShareRead"] = true;
-                    Current["Options"]["CacheIo"] = true;
-                    Current["Options"]["PseudoOplocks"] = true;
-                }
-                Current["Options"]["SupportCloudFiles"] = true;
-                VirtualSmbShares.push_back(Current);
-            }
-            if (!VirtualSmbShares.empty())
+            // Note: Skip Configuration.VirtualSmbShares because Create path
+            // fails with UseShareRootIdentity; added via Modify after Start.
+
+            if (!VirtualSmbShares.empty() ||
+                !Configuration.VirtualSmbShares.empty())
             {
                 if (Configuration.VirtualSmbDirectFileMappingInMB > 0)
                 {
                     Devices["VirtualSmb"]["DirectFileMappingInMB"] =
                         Configuration.VirtualSmbDirectFileMappingInMB;
                 }
-                Devices["VirtualSmb"]["Shares"] = VirtualSmbShares;
+                if (!VirtualSmbShares.empty())
+                {
+                    Devices["VirtualSmb"]["Shares"] = VirtualSmbShares;
+                }
             }
         }
     }
@@ -868,6 +859,40 @@ void NanaBox::ComputeSystemUpdateScsiDevice(
     Result["Settings"] = NanaBox::MakeHcsScsiDeviceConfiguration(Configuration);
 
     Instance->Modify(winrt::to_hstring(Result.dump()));
+}
+
+void NanaBox::ComputeSystemUpdateVirtualSmbShares(
+    winrt::com_ptr<NanaBox::ComputeSystem> const& Instance,
+    NanaBox::VirtualMachineConfiguration const& Configuration)
+{
+    for (NanaBox::VirtualSmbShareConfiguration const& VirtualSmbShare
+        : Configuration.VirtualSmbShares)
+    {
+        nlohmann::json Result;
+        Result["ResourcePath"] =
+            "VirtualMachine/Devices/VirtualSmb/Shares";
+        Result["RequestType"] = "Add";
+
+        nlohmann::json Settings;
+        Settings["Name"] = VirtualSmbShare.Name;
+        Settings["Path"] = ::GetAbsoluteUtf8Path(VirtualSmbShare.Path);
+        if (VirtualSmbShare.Privileged)
+        {
+            Settings["Options"]["UseShareRootIdentity"] = true;
+            Settings["Options"]["TakeBackupPrivilege"] = true;
+        }
+        if (VirtualSmbShare.ReadOnly)
+        {
+            Settings["Options"]["ReadOnly"] = true;
+            Settings["Options"]["ShareRead"] = true;
+            Settings["Options"]["CacheIo"] = true;
+            Settings["Options"]["PseudoOplocks"] = true;
+        }
+        Settings["Options"]["SupportCloudFiles"] = true;
+        Result["Settings"] = Settings;
+
+        Instance->Modify(winrt::to_hstring(Result.dump()));
+    }
 }
 
 void NanaBox::ComputeSystemUpdateGpu(
